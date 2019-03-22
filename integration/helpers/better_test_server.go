@@ -1,9 +1,9 @@
 package helpers
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/onsi/gomega/ghttp"
 )
@@ -28,26 +28,16 @@ func AddHandler(ser *ghttp.Server, method string, pathAndQuery string, status in
 
 	responses[key(method, u)] = resp{status, body}
 
-	if !seenRoutes[method+u.Path] {
+	if !seenRoutes[key(method, u)] {
 		ser.RouteToHandler(method, u.Path, func(w http.ResponseWriter, r *http.Request) {
-			res, ok := responses[key(r.Method, r.URL)]
-			if !ok {
-				for k, v := range responses {
-					fmt.Printf("For %s have status %d with %d bytes\n", k, v.status, len(v.body))
-				}
-				panic("no response for " + key(r.Method, r.URL))
-			}
-			println(res.status)
-			println("**************************************")
-			println(r.Method + ": " + r.URL.String())
-			println("**************************************")
+			res := responses[key(r.Method, r.URL)]
 			w.WriteHeader(res.status)
 			w.Write(res.body)
 		})
-		seenRoutes[method+u.Path] = true
+		seenRoutes[key(method, u)] = true
 	}
 }
 
 func key(method string, url *url.URL) string {
-	return method + url.String()
+	return strings.ToLower(method + url.String())
 }

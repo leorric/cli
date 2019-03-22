@@ -1413,7 +1413,6 @@ func AddFiftyOneOrgs(server *ghttp.Server, orgName string) {
 	AddHandler(server, http.MethodGet, "/v2/organizations?order-by=name", http.StatusOK, []byte(fmt.Sprintf(fiftyOneOrgJSONPage1, orgName)))
 	AddHandler(server, http.MethodGet, "/v2/organizations?order-by=name&order-direction=asc&page=2&results-per-page=50", http.StatusOK, []byte(fiftyOneOrgJSONPage2))
 	AddHandler(server, http.MethodGet, "/v2/spaces?order-by=name&q=organization_guid%3A6f30e06d-360e-4cd7-9849-01f28109bc37", http.StatusOK, []byte(noSpaces))
-	// TODO this appears not to work because we're downcasing something, but I don't know why we would do that.
 	AddHandler(server, http.MethodGet, strings.ToLower(fmt.Sprintf("/v2/organizations?q=name%%3A%[1]s&inline-relations-depth=1", orgName)), http.StatusOK, []byte(emptyOrgWithDepthOne))
 }
 

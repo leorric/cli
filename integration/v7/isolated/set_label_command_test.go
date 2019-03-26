@@ -82,5 +82,12 @@ var _ = Describe("set-label command", func() {
 			Eventually(session).Should(Say("FAILED"))
 			Eventually(session).Should(Exit(1))
 		})
+
+		FIt("displays an error for a label with invalid keys", func() {
+			session := helpers.CF("set-label", "app", appName, "%&_sha2=108eb90d734")
+			Eventually(session.Err).Should(Say("Metadata fookey error: label '%&_sha2' contains invalid characters"))
+			Eventually(session).Should(Say("FAILED"))
+			Eventually(session).Should(Exit(1))
+		})
 	})
 })

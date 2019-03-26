@@ -3,6 +3,7 @@ package ccv3
 import (
 	"encoding/json"
 	"net/http"
+	"regexp"
 
 	"code.cloudfoundry.org/cli/api/cloudcontroller"
 	"code.cloudfoundry.org/cli/api/cloudcontroller/ccerror"
@@ -126,6 +127,11 @@ func handleUnprocessableEntity(errorResponse ccerror.V3Error) error {
 	case "Buildpack must be an existing admin buildpack or a valid git URI":
 		return ccerror.InvalidBuildpackError{}
 	default:
+		ptn := regexp.MustCompile(`Metadata key error: label '(.*?)' contains invalid characters`)
+		submatches := ptn.FindStringSubmatch(errorResponse.Detail)
+		if len(submatches) >= 2 {
+			return ccerror.InvalidMetadataLabelKeyError{Key: submatches[1]}
+		}
 		return ccerror.UnprocessableEntityError{Message: errorResponse.Detail}
 	}
 }

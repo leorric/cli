@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"time"
 
 	"code.cloudfoundry.org/cli/integration/helpers"
 	. "github.com/onsi/ginkgo"
@@ -770,6 +771,23 @@ var _ = Describe("login command", func() {
 			Eventually(session).Should(Say("Password:"))
 			Eventually(session).Should(Say("\n\n"))
 			Eventually(session).Should(Exit(0))
+		})
+
+		When("the user presses CTRL+C during a password prompt", func() {
+			FIt("should exit", func() {
+				username, _ := helpers.GetCredentials()
+				buffer := NewBuffer()
+				buffer.Write([]byte(fmt.Sprintf("%s\n", username)))
+				session := helpers.CFWithStdin(buffer, "login")
+				Eventually(session).Should(Say("Email:"))
+				Eventually(session).Should(Say("Password:"))
+				time.Sleep(1 * time.Second)
+				session.Interrupt()
+				Consistently(session.Err).ShouldNot(Say("Credentials were rejected"))
+				Eventually(session).Should(Exit())
+				Expect(session.ExitCode()).To(Equal(130))
+				Expect(true).To(BeFalse())
+			})
 		})
 
 		When("the user's account has been locked due to too many failed attempts", func() {

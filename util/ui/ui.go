@@ -17,7 +17,56 @@ import (
 	"code.cloudfoundry.org/cli/util/configv3"
 	"github.com/fatih/color"
 	runewidth "github.com/mattn/go-runewidth"
+	"github.com/vito/go-interact/interact"
 )
+
+var realInteract interactorFunc = func(prompt string, choices ...interact.Choice) Resolver {
+	return &interactionWrapper{
+		i: interact.NewInteraction(prompt, choices...),
+	}
+}
+
+//go:generate counterfeiter . Interactor
+
+// Interactor hides interact.NewInteraction for testing purposes
+type Interactor interface {
+	NewInteraction(prompt string, choices ...interact.Choice) Resolver
+}
+
+//go:generate counterfeiter . Exiter
+
+// Exiter hides os.Exit for testing purposes
+type Exiter interface {
+	Exit(code int)
+}
+
+type interactorFunc func(prompt string, choices ...interact.Choice) Resolver
+
+func (f interactorFunc) NewInteraction(prompt string, choices ...interact.Choice) Resolver {
+	return f(prompt, choices...)
+}
+
+type realExiter struct{}
+
+func (realExiter) Exit(code int) {
+	os.Exit(code)
+}
+
+type interactionWrapper struct {
+	i interact.Interaction
+}
+
+func (w *interactionWrapper) Resolve(dst interface{}) error {
+	return w.i.Resolve(dst)
+}
+
+func (w *interactionWrapper) SetIn(in io.Reader) {
+	w.i.Input = in
+}
+
+func (w *interactionWrapper) SetOut(o io.Writer) {
+	w.i.Output = o
+}
 
 // UI is interface to interact with the user
 type UI struct {
@@ -34,9 +83,12 @@ type UI struct {
 
 	colorEnabled configv3.ColorSetting
 	translate    TranslateFunc
+	Exiter       Exiter
 
 	terminalLock *sync.Mutex
 	fileLock     *sync.Mutex
+
+	Interactor Interactor
 
 	IsTTY         bool
 	TerminalWidth int
@@ -62,7 +114,9 @@ func NewUI(config Config) (*UI, error) {
 		colorEnabled:     config.ColorEnabled(),
 		translate:        translateFunc,
 		terminalLock:     &sync.Mutex{},
+		Exiter:           &realExiter{},
 		fileLock:         &sync.Mutex{},
+		Interactor:       realInteract,
 		IsTTY:            config.IsTTY(),
 		TerminalWidth:    config.TerminalWidth(),
 		TimezoneLocation: location,
@@ -82,8 +136,10 @@ func NewTestUI(in io.Reader, out io.Writer, err io.Writer) *UI {
 		Out:              out,
 		OutForInteration: out,
 		Err:              err,
+		Exiter:           &realExiter{},
 		colorEnabled:     configv3.ColorDisabled,
 		translate:        translationFunc,
+		Interactor:       realInteract,
 		terminalLock:     &sync.Mutex{},
 		fileLock:         &sync.Mutex{},
 		TimezoneLocation: time.UTC,

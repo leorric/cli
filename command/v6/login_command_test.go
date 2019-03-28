@@ -239,6 +239,24 @@ var _ = Describe("login Command", func() {
 									Expect(credentials["password"]).To(Equal("other-password"))
 								})
 							})
+
+							When("there have been too many failed login attempts", func() {
+								BeforeEach(func() {
+									input.Write([]byte("other-password\n"))
+									fakeActor.AuthenticateReturns(
+										uaa.AccountLockedError{
+											Message: "Your account has been locked because of too many failed attempts to login.",
+										},
+									)
+								})
+
+								It("does not reuse the flag value for subsequent attempts", func() {
+									Expect(fakeActor.AuthenticateCallCount()).To(Equal(1), "called Authenticate again after lockout")
+									Expect(executeErr).To(MatchError(translatableerror.AccountLockedError{
+										Message: "Your account has been locked because of too many failed attempts to login.",
+									}))
+								})
+							})
 						})
 					})
 
@@ -349,7 +367,7 @@ var _ = Describe("login Command", func() {
 								Expect(fakeUI.DisplayTextPromptCallCount()).To(Equal(1))
 							})
 							It("errors", func() {
-								Expect(executeErr).To(MatchError("Unable to authenticate."))
+								Expect(executeErr).To(MatchError(errors.New("some-error")))
 							})
 
 						})
@@ -369,7 +387,7 @@ var _ = Describe("login Command", func() {
 							})
 
 							It("returns the error", func() {
-								Expect(executeErr).To(MatchError("Unable to authenticate."))
+								Expect(executeErr).To(MatchError(errors.New("some-error")))
 							})
 						})
 
@@ -390,7 +408,7 @@ var _ = Describe("login Command", func() {
 								Expect(fakeUI.DisplayPasswordPromptCallCount()).To(Equal(1))
 							})
 							It("errors", func() {
-								Expect(executeErr).To(MatchError("Unable to authenticate."))
+								Expect(executeErr).To(MatchError("some-error"))
 							})
 
 						})
@@ -414,7 +432,7 @@ var _ = Describe("login Command", func() {
 								Expect(fakeUI.DisplayPasswordPromptCallCount()).To(Equal(2))
 							})
 							It("errors", func() {
-								Expect(executeErr).To(MatchError("Unable to authenticate."))
+								Expect(executeErr).To(MatchError("some-error"))
 							})
 
 						})
@@ -454,7 +472,7 @@ var _ = Describe("login Command", func() {
 							})
 
 							It("returns an error indicating that it could not authenticate", func() {
-								Expect(executeErr).To(MatchError("Unable to authenticate."))
+								Expect(executeErr).To(MatchError("something died"))
 							})
 
 							It("displays a status summary", func() {
@@ -541,7 +559,7 @@ var _ = Describe("login Command", func() {
 					})
 					It("errors", func() {
 						Expect(fakeUI.DisplayPasswordPromptCallCount()).To(Equal(1))
-						Expect(executeErr).To(MatchError("Unable to authenticate."))
+						Expect(executeErr).To(MatchError(errors.New("some-error")))
 					})
 				})
 			})
@@ -575,7 +593,9 @@ var _ = Describe("login Command", func() {
 				When("an incorrect passcode is inputted", func() {
 					BeforeEach(func() {
 						cmd.SSOPasscode = "some-garbage"
-						fakeActor.AuthenticateReturns(errors.New("Credentials were rejected, please try again."))
+						fakeActor.AuthenticateReturns(uaa.UnauthorizedError{
+							Message: "Bad credentials",
+						})
 						fakeConfig.CurrentUserNameReturns("", nil)
 						input.Write([]byte("some-passcode\n"))
 					})
@@ -590,7 +610,7 @@ var _ = Describe("login Command", func() {
 					})
 
 					It("returns an error message", func() {
-						Expect(executeErr).To(MatchError("Unable to authenticate."))
+						Expect(executeErr).To(MatchError(translatableerror.UnauthorizedError{Message: "Bad credentials"}))
 					})
 
 					It("does not include user information in the summary", func() {

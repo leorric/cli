@@ -458,10 +458,7 @@ var _ = Describe("login command", func() {
 
 						Eventually(session).Should(Exit(0))
 						Expect(session).Should(Say("There are too many options to display, please type in the name."))
-
-						targetSession := helpers.CF("target")
-						Eventually(targetSession).Should(Exit(0))
-						Eventually(targetSession).Should(Say(`org:\s+%s`, orgName))
+						Eventually(session).Should(Say("Org:\\s+%s", orgName))
 					})
 				})
 
